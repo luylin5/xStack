@@ -10,7 +10,7 @@ A desktop application for viewing, comparing, plotting, and performing basic pea
 
 The entry point retains its historical name `xStack_v1.4.py`; distribution packages and splash artwork use version 1.5.
 
-![xStack splash](starting_fig.png)
+
 
 [中文说明](#中文说明) · [English guide](#english-guide)
 
