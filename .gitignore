@@ -1,0 +1,76 @@
+# Python caches and test / analysis output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+/htmlcov/
+.ipynb_checkpoints/
+
+# Virtual environments and local environment configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Local packaging tools and generated distributions
+/.build-tools/
+/build/
+/build_*/
+/dist/
+/dist_*/
+/release/
+*.egg-info/
+*.exe
+*.dll
+*.msi
+*.msix
+*.pyd
+*.zip
+*.7z
+*.rar
+
+# Historical source, design experiments, and obsolete releases
+/_archive/
+/branding/previous/
+
+# Local sessions, measurements, and temporary exports
+*.pxrdproj
+/local-data/
+/exports/
+
+# Editor, operating-system, and temporary files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Keep runtime artwork and build recipes despite parent-repository rules.
+!/xStack_v1.4.spec
+!/xStack_v1.4_onefile.spec
+!/packaging/*.spec
+!/xStack.png
+!/starting_fig.png
+
+# Keep current branding sources, but omit duplicate renders and previews.
+/branding/*.png
+
+# Keep only the current icon generator and its approved source assets.
+# The splash generator needs both the soft PNG and SVG.
+/design-crystal-icon/*
+!/design-crystal-icon/build_soft.py
+!/design-crystal-icon/xStack-crystal-soft.png
+!/design-crystal-icon/xStack-crystal-soft.svg
+!/design-crystal-icon/xStack-crystal-rounded.svg
