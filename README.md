@@ -6,11 +6,6 @@ A desktop application for viewing, comparing, plotting, and performing basic pea
 
 **当前发布版本 / Current release: 1.5**
 
-主程序保留历史文件名 `xStack_v1.4.py`；安装包、便携版及启动画面使用版本号 1.5。
-
-The entry point retains its historical name `xStack_v1.4.py`; distribution packages and splash artwork use version 1.5.
-
-
 
 [中文说明](#中文说明) · [English guide](#english-guide)
 
@@ -374,6 +369,5 @@ The ignore rules exclude caches, virtual environments, build/release directories
 ## 作者与致谢 / Author and attribution
 
 - **作者 / Author:** Yu-Lin Lu
-- **单位 / Affiliation:** Cooper Group, University of Liverpool
 - **ORCID:** [0000-0001-9846-8127](https://orcid.org/0000-0001-9846-8127)
-- **AI 辅助 / AI assistance:** 部分代码及文档使用了 AI 辅助；既有项目记录包含 GPT-5.3-Codex。Parts of the code and documentation were developed with AI assistance; existing project attribution includes GPT-5.3-Codex.
+- **AI 辅助 / AI assistance:** 代码及文档使用了 AI 辅助。The code and documentation were developed with AI assistance.
