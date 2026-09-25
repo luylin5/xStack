@@ -7,6 +7,12 @@ A desktop application for viewing, comparing, plotting, and performing basic pea
 **当前发布版本 / Current release: 1.5**
 
 
+## 界面预览 / Preview
+
+![xStack 主界面：PXRD 曲线堆叠比较、文件浏览器和显示设置](docs/images/xstack-preview.png)
+
+*使用模拟 PXRD 数据展示实际应用界面；非实验测量结果。 / Actual application interface with synthetic PXRD data, not experimental measurements.*
+
 [中文说明](#中文说明) · [English guide](#english-guide)
 
 ## 中文说明
@@ -46,7 +52,7 @@ A desktop application for viewing, comparing, plotting, and performing basic pea
 py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install numpy matplotlib PyQt6 scipy
-.\.venv\Scripts\python.exe .\xStack_v1.4.py
+.\.venv\Scripts\python.exe .\xStack.py
 ```
 
 也可以双击 `run_xStack.bat`。它默认调用 `%LOCALAPPDATA%\Programs\Python\Python314\python.exe`，不会自动使用 `.venv`；若使用其他解释器，请修改 BAT 内的 `XSTACK_PYTHON`。保持 `xstack_ui.py` 与主程序位于同一目录。
@@ -129,7 +135,7 @@ RAW 解析包含 Bruker `RAW `、`RAW2`、`RAW1.01`、`RAW4.00` 签名，以及�
 可以将多个数据文件拖到 BAT 或 EXE 上，也可通过命令行传入路径。已经运行时会将文件交给现有窗口，保留现有曲线和绘图参数。
 
 ```powershell
-.\.venv\Scripts\python.exe .\xStack_v1.4.py "D:\PXRD data\sample1.xy" "D:\PXRD data\sample2.xy"
+.\.venv\Scripts\python.exe .\xStack.py "D:\PXRD data\sample1.xy" "D:\PXRD data\sample2.xy"
 .\release\1.5\xStack-1.5-Portable.exe "D:\PXRD data\sample1.xy"
 ```
 
@@ -137,7 +143,7 @@ Windows 文件关联需手动设置：将程序放在固定位置，在数据文
 
 ### 9. Windows 打包
 
-当前发布入口为 `packaging/build.ps1`；根目录两个旧 `.spec` 保留历史构建方式，仍生成带 v1.4 名称的产物。
+当前发布入口为 `packaging/build.ps1`，使用 `packaging/xstack.spec` 构建目录版和单文件便携版。
 
 准备好运行依赖后，为所用 Python 安装 PyInstaller，并准备 Inno Setup 编译器：
 
@@ -207,7 +213,7 @@ From the project directory in PowerShell:
 py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install numpy matplotlib PyQt6 scipy
-.\.venv\Scripts\python.exe .\xStack_v1.4.py
+.\.venv\Scripts\python.exe .\xStack.py
 ```
 
 Alternatively, double-click `run_xStack.bat`. It uses `%LOCALAPPDATA%\Programs\Python\Python314\python.exe`, not the virtual environment automatically. Edit its `XSTACK_PYTHON` value to select another interpreter. Keep `xstack_ui.py` beside the entry point.
@@ -290,7 +296,7 @@ An externally opened project can be restored in an empty window. If curves are a
 Drop files onto the BAT/EXE or pass quoted paths on the command line. When an instance is running, external files are forwarded to that window while retaining existing curves and plot settings.
 
 ```powershell
-.\.venv\Scripts\python.exe .\xStack_v1.4.py "D:\PXRD data\sample1.xy" "D:\PXRD data\sample2.xy"
+.\.venv\Scripts\python.exe .\xStack.py "D:\PXRD data\sample1.xy" "D:\PXRD data\sample2.xy"
 .\release\1.5\xStack-1.5-Portable.exe "D:\PXRD data\sample1.xy"
 ```
 
@@ -298,7 +304,7 @@ For Windows file associations, keep the executable in a permanent location, righ
 
 ### 9. Building Windows packages
 
-Use `packaging/build.ps1` for version 1.5. The two root-level `.spec` files retain older build paths and produce v1.4-named outputs.
+Use `packaging/build.ps1` for version 1.5. It uses `packaging/xstack.spec` to build both folder and single-file portable editions.
 
 After installing runtime dependencies, install PyInstaller into the selected environment and provide an Inno Setup compiler:
 
@@ -342,13 +348,13 @@ Coverage includes external opening/window reuse, UI behavior, data safety, live 
 8_xStack/
 ├── README.md
 ├── .gitignore
-├── xStack_v1.4.py              # 主程序、数据处理与绘图 / Application and processing
+├── xStack.py                   # 主程序、数据处理与绘图 / Application and processing
 ├── xstack_ui.py                # Qt 样式与界面构建 / Qt styling and UI builders
 ├── run_xStack.bat              # 本机源码启动器 / Local source launcher
 ├── test_*.py                   # 回归测试 / Regression tests
+├── docs/images/                # README 界面截图 / README screenshots
 ├── xStack.png / *.ico          # 应用图标 / Application icons
 ├── starting_fig.png            # 启动画面 / Splash artwork
-├── xStack_v1.4*.spec            # 历史打包入口 / Legacy packaging specs
 ├── packaging/                 # 1.5 构建脚本与元数据 / Release build configuration
 ├── branding/                  # 启动画面源文件与生成器 / Splash sources and generator
 ├── design-crystal-icon/        # 图标源文件与生成器 / Icon sources and generators

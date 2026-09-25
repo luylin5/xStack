@@ -16,7 +16,7 @@ from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication, QMessageBox, QFileDialog
 
 spec = importlib.util.spec_from_file_location(
-    "xstack", Path(__file__).with_name("xStack_v1.4.py")
+    "xstack", Path(__file__).with_name("xStack.py")
 )
 xstack = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(xstack)

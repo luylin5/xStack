@@ -58,11 +58,12 @@ Desktop.ini
 *~
 
 # Keep runtime artwork and build recipes despite parent-repository rules.
-!/xStack_v1.4.spec
-!/xStack_v1.4_onefile.spec
 !/packaging/*.spec
 !/xStack.png
 !/starting_fig.png
+
+# Keep the application preview embedded in README.
+!/docs/images/xstack-preview.png
 
 # Keep current branding sources, but omit duplicate renders and previews.
 /branding/*.png

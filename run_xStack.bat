@@ -13,7 +13,7 @@ if not exist "%XSTACK_PYTHON%" (
 rem Do not inherit unrelated ChemOffice Python modules.
 set "PYTHONPATH="
 rem Preserve quoted file arguments and the caller's working directory.
-"%XSTACK_PYTHON%" "%~dp0xStack_v1.4.py" %*
+"%XSTACK_PYTHON%" "%~dp0xStack.py" %*
 if errorlevel 1 (
     echo xStack exited with an error. See the message above.
     pause

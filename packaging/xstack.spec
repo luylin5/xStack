@@ -2,8 +2,8 @@ from pathlib import Path
 
 root = Path(SPECPATH).parent
 a = Analysis(
-    [str(root / 'xStack_v1.4.py')], pathex=[str(root)], binaries=[],
-    datas=[(str(root / name), '.') for name in ('xStack.png', 'xStack.ico', 'xStack_large.ico', 'starting_fig.png')],
+    [str(root / 'xStack.py')], pathex=[str(root)], binaries=[],
+    datas=[(str(root / name), '.') for name in ('xStack.png', 'xStack.ico', 'starting_fig.png')],
     hiddenimports=['matplotlib.backends.backend_qtagg', 'matplotlib.backends.backend_svg',
                    'scipy.signal', 'scipy.ndimage', 'scipy.sparse', 'scipy.sparse.linalg'],
     hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False, optimize=0,
