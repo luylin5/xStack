@@ -4,7 +4,7 @@
 
 A desktop application for viewing, comparing, plotting, and performing basic peak analysis on powder X-ray diffraction (PXRD) patterns.
 
-**当前发布版本 / Current release: 1.5**
+**当前发布版本 / Current release: 1.6**
 
 
 ## 界面预览 / Preview
@@ -21,7 +21,8 @@ A desktop application for viewing, comparing, plotting, and performing basic pea
 
 - 批量导入 PXRD 文件，支持文件浏览器、拖放导入及曲线列表拖动排序。
 - 支持堆叠（Stacked）与叠加（Overlay）显示，调节曲线倍率、偏移、颜色及标签。
-- 提供全局归一化和随可见 X 区间更新的实时归一化。
+- Color mode 提供黑色、12 套分类配色（Okabe–Ito / Tol 色盲友好、Nature / Science / Lancet / NEJM / JAMA 期刊风格、Tableau、ColorBrewer）及 5 种按列表顺序铺开的渐变色（Viridis、Plasma、Cividis 等）。
+- 归一化可选关闭、全范围（Full range）或随可见 X 区间更新的可见范围（Visible range）。
 - 交互缩放、平移、文本编辑，以及最多 30 步的快照式撤销。
 - 内置 Savitzky–Golay、移动平均、高斯平滑、arPLS 背景扣除及峰分析。
 - 导出 CSV、SVG、PNG，并可将 SVG/PNG 复制到剪贴板。
@@ -32,13 +33,13 @@ A desktop application for viewing, comparing, plotting, and performing basic pea
 
 #### Windows 安装版与便携版
 
-当前打包配置面向 **64 位 Windows 10/11**。完成构建后，文件位于 `release/1.5/`：
+当前打包配置面向 **64 位 Windows 10/11**。完成构建后，文件位于 `release/1.6/`：
 
 | 文件 | 用途 |
 | --- | --- |
-| `xStack-1.5-Setup.exe` | 按用户安装，含开始菜单入口、可选桌面快捷方式及卸载程序，无需管理员权限 |
-| `xStack-1.5-Portable.exe` | 单文件便携版，无需安装 Python；启动时解压依赖到临时目录 |
-| `xStack-1.5/` | 安装器使用的程序目录；直接运行其中的 `xStack.exe` 时需保留 `_internal` |
+| `xStack-1.6-Setup.exe` | 按用户安装，含开始菜单入口、可选桌面快捷方式及卸载程序，无需管理员权限 |
+| `xStack-1.6-Portable.exe` | 单文件便携版，无需安装 Python；启动时解压依赖到临时目录 |
+| `xStack-1.6/` | 安装器使用的程序目录；直接运行其中的 `xStack.exe` 时需保留 `_internal` |
 
 构建产物不纳入 Git，源码检出后需要自行构建或另行取得发布包。当前构建未进行代码签名。
 
@@ -55,7 +56,7 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe .\xStack.py
 ```
 
-也可以双击 `run_xStack.bat`。它默认调用 `%LOCALAPPDATA%\Programs\Python\Python314\python.exe`，不会自动使用 `.venv`；若使用其他解释器，请修改 BAT 内的 `XSTACK_PYTHON`。保持 `xstack_ui.py` 与主程序位于同一目录。
+也可以双击 `run_xStack.bat`。它会依次尝试环境变量 `XSTACK_PYTHON`、项目内 `.venv`、`py` 启动器中的 Python 3.14–3.11 以及 PATH 上的 `python`，使用第一个已安装全部依赖的解释器；都找不到时会提示安装命令。保持所有 `xstack_*.py` 模块与主程序位于同一目录。
 
 ### 3. 基本使用流程
 
@@ -94,8 +95,8 @@ RAW 解析包含 Bruker `RAW `、`RAW2`、`RAW1.01`、`RAW4.00` 签名，以及�
 | 在绘图区空白处按住左键拖动 | 缩放 X 轴区间 |
 | 按住中键拖动 | 沿 X 轴平移 |
 | 双击绘图区空白处 | 恢复完整视图 |
-| 双击曲线标签 | 编辑标签文字 |
-| 双击标题或轴标签 | 编辑对应文字 |
+| 双击曲线标签 | 编辑标签文字；可用 x² / x₂ / I / B 按钮添加上标、下标、斜体、加粗 |
+| 双击标题或轴标签 | 编辑对应文字，同样支持上标、下标、斜体、加粗 |
 | 双击曲线 | 修改颜色 |
 | 滚轮 | 调整选中曲线倍率；未选择曲线时调整全部曲线 |
 | `Ctrl+Shift+C` | 复制当前图为 SVG |
@@ -104,7 +105,7 @@ RAW 解析包含 Bruker `RAW `、`RAW2`、`RAW1.01`、`RAW4.00` 签名，以及�
 
 ### 6. 归一化、处理与数据含义
 
-**实时归一化：** 在 Display 中开启后，每条曲线按当前可见 X 区间内的最大强度归一化。缩放、平移或更改范围会自动更新，且优先于全局 Normalize。可见区间没有采样点时使用全曲线最大值；最大值为零或负数时不做除法。该选项随项目保存。
+**归一化：** Display 中的 **Normalize** 有三种模式：**Off** 显示原始强度；**Full range** 按每条曲线全范围最大强度归一化；**Visible range** 按当前可见 X 区间内的最大强度归一化，缩放、平移或更改范围时自动更新。可见区间没有采样点时使用全曲线最大值；最大值为零或负数时不做除法。该模式随项目保存；1.5 及更早版本保存的项目和默认参数会自动换算为对应模式。
 
 归一化、手动倍率和显示偏移只改变图像，不改变存储的数据数组。CSV 导出不包含这些显示变换。
 
@@ -136,14 +137,14 @@ RAW 解析包含 Bruker `RAW `、`RAW2`、`RAW1.01`、`RAW4.00` 签名，以及�
 
 ```powershell
 .\.venv\Scripts\python.exe .\xStack.py "D:\PXRD data\sample1.xy" "D:\PXRD data\sample2.xy"
-.\release\1.5\xStack-1.5-Portable.exe "D:\PXRD data\sample1.xy"
+.\release\1.6\xStack-1.6-Portable.exe "D:\PXRD data\sample1.xy"
 ```
 
 Windows 文件关联需手动设置：将程序放在固定位置，在数据文件右键菜单中选择“打开方式 → 选择其他应用”，选取安装后的 `xStack.exe` 或便携 EXE，并设为始终使用。不同扩展名需分别设置，当前安装脚本不自动注册这些关联。
 
 ### 9. Windows 打包
 
-当前发布入口为 `packaging/build.ps1`，使用 `packaging/xstack.spec` 构建目录版和单文件便携版。
+当前发布入口为 `packaging/build.ps1`，使用 `packaging/xstack.spec` 构建目录版和单文件便携版。版本号只在 `xstack_version.py` 中维护，打包配置、安装器和启动画面生成脚本都从这里读取。
 
 准备好运行依赖后，为所用 Python 安装 PyInstaller，并准备 Inno Setup 编译器：
 
@@ -152,22 +153,22 @@ Windows 文件关联需手动设置：将程序放在固定位置，在数据文
 .\packaging\build.ps1 -Python "$PWD\.venv\Scripts\python.exe" -Compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 
-`-Compiler` 必须指向实际安装的 `ISCC.exe`。脚本默认使用本机 Python 3.14 和 `.build-tools/inno/ISCC.exe`，并把 `.build-tools` 加入构建时的 Python 模块路径；这些本地工具不随仓库分发。现有打包记录使用 Inno Setup 6.7.3。
+`-Compiler` 必须指向实际安装的 `ISCC.exe`。不指定 `-Python` 时，脚本按与 `run_xStack.bat` 相同的顺序自动选择第一个已安装全部依赖的 Python；默认编译器为 `.build-tools/inno/ISCC.exe`，并把 `.build-tools` 加入构建时的 Python 模块路径；这些本地工具不随仓库分发。现有打包记录使用 Inno Setup 6.7.3。
 
-脚本先运行 `packaging/xstack.spec` 生成目录版与便携版，再运行 `packaging/xstack.iss` 生成安装器，最后输出两个 EXE 的 SHA-256。中间文件位于 `build/release-1.5/`，发布文件位于 `release/1.5/`。更多说明见 [packaging/README.md](packaging/README.md)。
+脚本先运行全部回归测试（`-SkipTests` 可跳过），再用 `packaging/xstack.spec` 生成目录版与便携版，然后运行 `packaging/xstack.iss` 生成安装器，最后输出两个 EXE 的 SHA-256。中间文件放在 OneDrive 之外的 `%LOCALAPPDATA%\xStack-build\`，避免同步锁定和反复上传；发布文件位于 `release/1.6/`。更多说明见 [packaging/README.md](packaging/README.md)。
 
 ### 10. 测试与维护
 
 在已安装运行依赖的环境执行：
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest test_file_open test_ui test_data_safety test_live_normalization test_performance
+.\.venv\Scripts\python.exe -m unittest test_file_open test_ui test_data_safety test_live_normalization test_performance test_richtext
 ```
 
-测试覆盖文件打开与窗口复用、界面行为、数据安全、实时归一化以及增量绘图行为。它们不代表对所有厂商 RAW 文件或硬件性能的全面验证。打包后可额外运行 Windows EXE 冒烟检查：
+测试覆盖文件打开与窗口复用、界面行为、数据安全、实时归一化、增量绘图、配色以及标签格式。它们不代表对所有厂商 RAW 文件或硬件性能的全面验证。打包后可额外运行 Windows EXE 冒烟检查：
 
 ```powershell
-.\.venv\Scripts\python.exe .\packaging\smoke_frozen.py .\release\1.5\xStack-1.5-Portable.exe
+.\.venv\Scripts\python.exe .\packaging\smoke_frozen.py .\release\1.6\xStack-1.6-Portable.exe
 ```
 
 ### 11. 常见问题
@@ -179,7 +180,7 @@ Windows 文件关联需手动设置：将程序放在固定位置，在数据文
 | RAW 或文本文件无法读取 | 检查是否包含有效两列数据，必要时从仪器软件重新导出 |
 | 导出的 CSV 与图中高度不同 | CSV 不包含显示归一化、倍率和偏移；图像请导出 SVG/PNG |
 | 便携版启动较慢 | 单文件版本需先解压依赖，可改用安装版 |
-| 大文件夹搜索仍有停顿 | 搜索有输入防抖，但目录扫描仍运行在界面线程 |
+| 大文件夹搜索结果出现较慢 | 搜索在后台线程扫描子目录，界面不会卡住；最多显示前 2000 条匹配，可输入更具体的关键词 |
 
 ## English guide
 
@@ -187,6 +188,7 @@ Windows 文件关联需手动设置：将程序放在固定位置，在数据文
 
 - Import multiple PXRD patterns through the file browser, file dialog, or drag and drop; drag list entries to reorder them.
 - Compare patterns in **Stacked** or **Overlay** mode with editable scales, offsets, colors, and labels.
+- Color mode offers black, 12 categorical palettes (colorblind-safe Okabe–Ito and Tol sets; Nature, Science, Lancet, NEJM, and JAMA journal styles; Tableau; ColorBrewer), and 5 gradients spread across curves in list order (Viridis, Plasma, Cividis, and more).
 - Use global normalization or live normalization based on the visible X range.
 - Zoom, pan, edit plot text, and undo changes with up to 30 snapshots.
 - Apply Savitzky–Golay, moving-average, and Gaussian smoothing, arPLS background subtraction, and basic peak analysis.
@@ -195,13 +197,13 @@ Windows 文件关联需手动设置：将程序放在固定位置，在数据文
 
 ### 2. Installation and launch
 
-The current packaging configuration targets **64-bit Windows 10/11**. Build outputs appear under `release/1.5/`:
+The current packaging configuration targets **64-bit Windows 10/11**. Build outputs appear under `release/1.6/`:
 
 | Output | Purpose |
 | --- | --- |
-| `xStack-1.5-Setup.exe` | Per-user installer, Start menu entry, optional desktop shortcut, and uninstaller; no administrator access required |
-| `xStack-1.5-Portable.exe` | Standalone EXE; no Python installation required; extracts dependencies to a temporary directory at launch |
-| `xStack-1.5/` | Installer payload; retain `_internal` beside `xStack.exe` when running this folder directly |
+| `xStack-1.6-Setup.exe` | Per-user installer, Start menu entry, optional desktop shortcut, and uninstaller; no administrator access required |
+| `xStack-1.6-Portable.exe` | Standalone EXE; no Python installation required; extracts dependencies to a temporary directory at launch |
+| `xStack-1.6/` | Installer payload; retain `_internal` beside `xStack.exe` when running this folder directly |
 
 Generated packages are excluded from Git. Build them from source or obtain a release package separately. The current build is unsigned.
 
@@ -216,7 +218,7 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe .\xStack.py
 ```
 
-Alternatively, double-click `run_xStack.bat`. It uses `%LOCALAPPDATA%\Programs\Python\Python314\python.exe`, not the virtual environment automatically. Edit its `XSTACK_PYTHON` value to select another interpreter. Keep `xstack_ui.py` beside the entry point.
+Alternatively, double-click `run_xStack.bat`. It tries `XSTACK_PYTHON` (if set), the project `.venv`, Python 3.14 to 3.11 via the `py` launcher, then `python` on PATH, and uses the first interpreter that has every dependency installed; otherwise it prints the install command. Keep all `xstack_*.py` modules beside the entry point.
 
 ### 3. Typical workflow
 
@@ -255,8 +257,8 @@ Binary support includes Bruker signatures `RAW `, `RAW2`, `RAW1.01`, and `RAW4.0
 | Left-drag on blank plot space | Zoom the X range |
 | Middle-drag | Pan along X |
 | Double-click blank plot space | Reset the full view |
-| Double-click a curve label | Edit its text |
-| Double-click the title or an axis label | Edit the corresponding text |
+| Double-click a curve label | Edit its text; the x² / x₂ / I / B buttons add superscript, subscript, italic, and bold |
+| Double-click the title or an axis label | Edit the corresponding text, with the same formatting buttons |
 | Double-click a curve | Change its color |
 | Mouse wheel | Scale the selected curve, or all curves when none is selected |
 | `Ctrl+Shift+C` | Copy the current figure as SVG |
@@ -265,7 +267,7 @@ Binary support includes Bruker signatures `RAW `, `RAW2`, `RAW1.01`, and `RAW4.0
 
 ### 6. Normalization and processing
 
-**Live normalization** scales each curve by its maximum intensity within the visible X range. It updates when zooming, panning, or editing the range and takes precedence over global Normalize. If the visible range has no samples, the full-curve maximum is used. Division is skipped when the maximum is zero or negative. This setting is saved with the project.
+**Normalization** is a single **Normalize** mode in Display: **Off** shows raw intensities, **Full range** divides each curve by its overall maximum, and **Visible range** divides by the maximum inside the current X view, updating while zooming, panning, or editing the range. If the visible range has no samples, the full-curve maximum is used. Division is skipped when the maximum is zero or negative. The mode is saved with the project; projects and saved defaults from 1.5 and earlier are converted automatically.
 
 Normalization, manual scale, and display offsets affect rendering only; they do not change stored arrays and are not included in CSV exports.
 
@@ -297,14 +299,14 @@ Drop files onto the BAT/EXE or pass quoted paths on the command line. When an in
 
 ```powershell
 .\.venv\Scripts\python.exe .\xStack.py "D:\PXRD data\sample1.xy" "D:\PXRD data\sample2.xy"
-.\release\1.5\xStack-1.5-Portable.exe "D:\PXRD data\sample1.xy"
+.\release\1.6\xStack-1.6-Portable.exe "D:\PXRD data\sample1.xy"
 ```
 
 For Windows file associations, keep the executable in a permanent location, right-click a data file, select **Open with → Choose another app**, choose the installed `xStack.exe` or portable EXE, and select **Always**. Repeat for each extension. The installer does not automatically register these associations.
 
 ### 9. Building Windows packages
 
-Use `packaging/build.ps1` for version 1.5. It uses `packaging/xstack.spec` to build both folder and single-file portable editions.
+Use `packaging/build.ps1` to build a release; the version comes from `xstack_version.py`. It uses `packaging/xstack.spec` to build both folder and single-file portable editions.
 
 After installing runtime dependencies, install PyInstaller into the selected environment and provide an Inno Setup compiler:
 
@@ -313,22 +315,22 @@ After installing runtime dependencies, install PyInstaller into the selected env
 .\packaging\build.ps1 -Python "$PWD\.venv\Scripts\python.exe" -Compiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ```
 
-Adjust `-Compiler` to the actual `ISCC.exe` location. Defaults use the local Python 3.14 installation and `.build-tools/inno/ISCC.exe`; `.build-tools` is added to the build-time Python module path. Local tools are not distributed in Git. The existing packaging record uses Inno Setup 6.7.3.
+Adjust `-Compiler` to the actual `ISCC.exe` location. Without `-Python`, the script picks the first interpreter with every dependency, in the same order as `run_xStack.bat`; the default compiler is `.build-tools/inno/ISCC.exe`, and `.build-tools` is added to the build-time Python module path. Local tools are not distributed in Git. The existing packaging record uses Inno Setup 6.7.3.
 
-The script runs `packaging/xstack.spec` for folder and portable outputs, then `packaging/xstack.iss` for the installer, and prints SHA-256 hashes for both distributable EXEs. Intermediates go to `build/release-1.5/`; outputs go to `release/1.5/`. See [packaging/README.md](packaging/README.md).
+The script first runs the regression suite (skip with `-SkipTests`), then `packaging/xstack.spec` for folder and portable outputs and `packaging/xstack.iss` for the installer, and prints SHA-256 hashes for both distributable EXEs. Intermediates go to `%LOCALAPPDATA%\xStack-build\`, outside OneDrive, to avoid sync locks and repeated uploads; outputs go to `release/1.6/`. See [packaging/README.md](packaging/README.md).
 
 ### 10. Tests and maintenance
 
 Run the regression suite in an environment with runtime dependencies installed:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest test_file_open test_ui test_data_safety test_live_normalization test_performance
+.\.venv\Scripts\python.exe -m unittest test_file_open test_ui test_data_safety test_live_normalization test_performance test_richtext
 ```
 
-Coverage includes external opening/window reuse, UI behavior, data safety, live normalization, and incremental plotting behavior. This is not exhaustive vendor-format validation or a hardware performance benchmark. After packaging, an additional Windows frozen-app smoke check is available:
+Coverage includes external opening/window reuse, UI behavior, data safety, live normalization, incremental plotting, palettes, and label formatting. This is not exhaustive vendor-format validation or a hardware performance benchmark. After packaging, an additional Windows frozen-app smoke check is available:
 
 ```powershell
-.\.venv\Scripts\python.exe .\packaging\smoke_frozen.py .\release\1.5\xStack-1.5-Portable.exe
+.\.venv\Scripts\python.exe .\packaging\smoke_frozen.py .\release\1.6\xStack-1.6-Portable.exe
 ```
 
 ### 11. Troubleshooting
@@ -340,7 +342,7 @@ Coverage includes external opening/window reuse, UI behavior, data safety, live 
 | A RAW/text file cannot be read | Check for valid two-column data or export text from the instrument software |
 | CSV intensities differ from displayed heights | CSV omits display normalization, scaling, and offsets; export SVG/PNG for the visual result |
 | Portable startup is slower | The single EXE extracts dependencies first; use the installed edition if preferred |
-| Searching a large directory briefly pauses the UI | Search input is debounced, but directory scanning still runs on the UI thread |
+| Search results in a large directory take a while | Scanning runs in a background thread so the window stays responsive; at most 2000 matches are shown, so refine the query |
 
 ## 项目结构 / Project structure
 
@@ -348,25 +350,25 @@ Coverage includes external opening/window reuse, UI behavior, data safety, live 
 8_xStack/
 ├── README.md
 ├── .gitignore
-├── xStack.py                   # 主程序、数据处理与绘图 / Application and processing
+├── xStack.py                   # 主窗口、绘图与交互 / Main window, plotting and interaction
 ├── xstack_ui.py                # Qt 样式与界面构建 / Qt styling and UI builders
+├── xstack_io.py                # PXRD 文件读取与目录搜索 / File readers and folder search
+├── xstack_processing.py        # 平滑、背景扣除与峰几何 / Smoothing, background and peak math
+├── xstack_tools.py             # PXRD Tools 对话框 / PXRD Tools dialog
+├── xstack_palettes.py          # 曲线配色方案 / Curve color palettes
+├── xstack_richtext.py          # 标签上下标/斜体/加粗 / Label formatting markup
+├── xstack_version.py           # 版本号唯一来源 / Single source of the version
 ├── run_xStack.bat              # 本机源码启动器 / Local source launcher
 ├── test_*.py                   # 回归测试 / Regression tests
 ├── docs/images/                # README 界面截图 / README screenshots
 ├── xStack.png / *.ico          # 应用图标 / Application icons
 ├── starting_fig.png            # 启动画面 / Splash artwork
-├── packaging/                 # 1.5 构建脚本与元数据 / Release build configuration
+├── packaging/                 # 构建脚本与元数据 / Release build configuration
 ├── branding/                  # 启动画面源文件与生成器 / Splash sources and generator
 ├── design-crystal-icon/        # 图标源文件与生成器 / Icon sources and generators
-├── _archive/                  # 历史材料 / Historical materials
-├── .build-tools/               # 本地工具，忽略 / Local tools, ignored
-├── build/                     # 构建中间文件，忽略 / Build intermediates, ignored
+├── .build-tools/               # 本地打包工具，忽略 / Local build tools, ignored
 └── release/                   # 发布产物，忽略 / Release outputs, ignored
 ```
-
-`_archive/2026-09-23-cleanup/manifest.json` 记录清理前后路径；归档源码不是当前启动入口。整个历史归档目录由 `.gitignore` 排除，仅在本地保留，不随源码仓库分发。
-
-`_archive/2026-09-23-cleanup/manifest.json` records original and archived paths. Archived source is not the current entry point. The entire historical archive is ignored and retained locally; it is not distributed with the source repository.
 
 `.gitignore` 排除缓存、虚拟环境、构建/发布目录、日志及本地会话文件，保留源代码、测试、打包配置及当前品牌源文件；忽略设计草稿、预览图与重复生成图片，并覆盖上级目录对 PNG / `.spec` 的广泛忽略。科学数据格式（如 CSV、XY、RAW）不做一刀切忽略；本地实验文件可放入被忽略的 `local-data/`，临时导出可放入 `exports/`。忽略规则不会自动停止跟踪已提交的文件。
 

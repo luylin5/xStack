@@ -17,8 +17,7 @@ class IncrementalPlotTests(unittest.TestCase):
                                            (False, True, True), (True, True, False)]:
             with self.subTest(overlay=overlay, live=live, normalized=normalized):
                 w.superimpose_cb.setChecked(overlay)
-                w.norm_cb.setChecked(normalized)
-                w.live_norm_cb.setChecked(live)
+                w._set_norm_mode("visible" if live else "full" if normalized else "none")
                 w.update_plot()
                 w._set_shared_xlim(10, 12)
                 w.selected_idx = 0

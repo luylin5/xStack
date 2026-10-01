@@ -3,15 +3,19 @@
 Keep toolbar and splitter order stable; the inspector follows the approved compact design.
 Scientific data, plotting and export behavior belong to the main window.
 """
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QFont, QShortcut, QKeySequence, QIcon, QPixmap, QPainter, QColor
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRectF
+from PyQt6.QtGui import QFont, QShortcut, QKeySequence, QIcon, QPixmap, QPainter, QColor, QImage
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit,
     QCheckBox, QComboBox, QGroupBox, QGridLayout, QSpinBox, QDoubleSpinBox,
-    QAbstractItemView, QSizePolicy, QScrollArea, QSplitter, QButtonGroup,
+    QAbstractItemView, QSizePolicy, QScrollArea, QSplitter, QButtonGroup, QColorDialog,
+    QDialog, QDialogButtonBox,
 )
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+
+from xstack_palettes import PALETTES, palette_colors, shade_grid
+from xstack_richtext import remove_tags, to_mathtext, to_plain
 
 # Shared surface, text and interaction rules, following Chemary's Qt UI.
 # Scope these rules to this window; matplotlib figure/export colors are untouched.
@@ -167,14 +171,192 @@ class ParameterGrid(QWidget):
         self.grid.addWidget(control, row, column + 1)
 
 
-class DisplayRow(QWidget):
-    def __init__(self, checkbox, switch):
+def render_label_pixmap(text, point_size=14, ratio=1.0):
+    """Draw a label with matplotlib, exactly as the plot does, for previews."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    figure = Figure(dpi=96 * ratio)
+    canvas = FigureCanvasAgg(figure)
+    label = figure.text(0, 0, to_mathtext(text) or " ", fontsize=point_size, color="#111111")
+    try:
+        canvas.draw()
+    except ValueError:  # unparsable text: show it unformatted rather than failing
+        label.set_text(to_plain(text).replace("$", r"\$") or " ")
+        canvas.draw()
+    box = label.get_window_extent(canvas.get_renderer())
+    pad = 3 * ratio
+    width, height = int(box.width + 2 * pad) + 1, int(box.height + 2 * pad) + 1
+    figure.set_size_inches(width / figure.dpi, height / figure.dpi)
+    label.set_position((pad / width, (pad - box.y0) / height))
+    figure.patch.set_alpha(0)
+    canvas.draw()
+    image = QImage(canvas.buffer_rgba(), width, height, QImage.Format.Format_RGBA8888).copy()
+    pixmap = QPixmap.fromImage(image)
+    pixmap.setDevicePixelRatio(ratio)
+    return pixmap
+
+
+class FormattedTextDialog(QDialog):
+    """Text prompt with superscript, subscript, italic and bold buttons.
+
+    Formatting is stored as <sup>, <sub>, <i> and <b> tags (see xstack_richtext).
+    Buttons wrap the selection, or insert an empty pair at the cursor; clicking
+    again on an already wrapped selection removes that format.
+    """
+    FORMATS = (
+        ("sup", "x²", "Superscript (Ctrl+Shift+=)", "Ctrl+Shift+="),
+        ("sub", "x₂", "Subscript (Ctrl+=)", "Ctrl+="),
+        ("i", "I", "Italic (Ctrl+I)", "Ctrl+I"),
+        ("b", "B", "Bold (Ctrl+B)", "Ctrl+B"),
+    )
+
+    def __init__(self, title, prompt, text="", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setMinimumWidth(480)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(prompt))
+
+        toolbar = QHBoxLayout()
+        toolbar.setSpacing(4)
+        self.format_buttons = {}
+        for tag, caption, tip, key in self.FORMATS:
+            button = QPushButton(caption)
+            button.setToolTip(tip)
+            button.setAccessibleName(tip.split(" (")[0])
+            button.setFixedWidth(36)
+            font = button.font()
+            font.setItalic(tag == "i")
+            font.setBold(tag == "b")
+            button.setFont(font)
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keep the selection in the text field
+            button.clicked.connect(lambda _checked=False, t=tag: self.apply_format(t))
+            QShortcut(QKeySequence(key), self, activated=lambda t=tag: self.apply_format(t))
+            toolbar.addWidget(button)
+            self.format_buttons[tag] = button
+        clear = QPushButton("Clear formatting")
+        clear.setToolTip("Remove formatting from the selection, or from all text when nothing is selected")
+        clear.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        clear.clicked.connect(self.clear_format)
+        toolbar.addWidget(clear)
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        self.edit = QLineEdit(text)
+        self.edit.textChanged.connect(self._update_preview)
+        layout.addWidget(self.edit)
+
+        # Rendered by matplotlib exactly as on the plot, not by Qt's HTML engine.
+        self.preview = QLabel()
+        self.preview.setObjectName("formatPreview")
+        self.preview.setMinimumHeight(44)
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.preview.setStyleSheet(
+            "QLabel#formatPreview { background: white; border: 1px solid #d8e0e7;"
+            " border-radius: 4px; padding: 4px 8px; }")
+        hint = QLabel("Preview (as drawn on the plot) — select text, then choose a format")
+        hint.setProperty("role", "muted")
+        layout.addWidget(hint)
+        layout.addWidget(self.preview)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self._update_preview()
+        self.edit.selectAll()
+
+    def text(self):
+        return self.edit.text()
+
+    def _update_preview(self):
+        self.preview.setPixmap(render_label_pixmap(self.edit.text(), ratio=self.devicePixelRatioF()))
+
+    def apply_format(self, tag):
+        text = self.edit.text()
+        opening, closing = f"<{tag}>", f"</{tag}>"
+        if not self.edit.hasSelectedText():
+            pos = self.edit.cursorPosition()
+            self.edit.setText(text[:pos] + opening + closing + text[pos:])
+            self.edit.setCursorPosition(pos + len(opening))
+            self.edit.setFocus()
+            return
+        start = self.edit.selectionStart()
+        end = start + len(self.edit.selectedText())
+        selected = text[start:end]
+        if text[:start].endswith(opening) and text[end:].startswith(closing):
+            # Already wrapped: toggle the format off.
+            text = text[:start - len(opening)] + selected + text[end + len(closing):]
+            start -= len(opening)
+        elif selected.startswith(opening) and selected.endswith(closing) and len(selected) >= len(opening + closing):
+            selected = selected[len(opening):-len(closing)]
+            text = text[:start] + selected + text[end:]
+        else:
+            text = text[:start] + opening + selected + closing + text[end:]
+            start += len(opening)
+        self.edit.setText(text)
+        # Keep the inner text selected so formats can be combined (e.g. bold subscript).
+        self.edit.setSelection(start, len(selected))
+        self.edit.setFocus()
+
+    def clear_format(self):
+        text = self.edit.text()
+        if self.edit.hasSelectedText():
+            start = self.edit.selectionStart()
+            end = start + len(self.edit.selectedText())
+            inner = remove_tags(text[start:end])
+            self.edit.setText(text[:start] + inner + text[end:])
+            self.edit.setSelection(start, len(inner))
+        else:
+            self.edit.setText(remove_tags(text))
+        self.edit.setFocus()
+
+    @classmethod
+    def get_text(cls, parent, title, prompt, text=""):
+        """Drop-in for QInputDialog.getText: returns (text, accepted)."""
+        dialog = cls(title, prompt, text, parent)
+        accepted = dialog.exec() == QDialog.DialogCode.Accepted
+        return dialog.text(), accepted
+
+
+class PathLineEdit(QLineEdit):
+    """Folder field that elides the start of long paths while not being edited."""
+    def __init__(self, path=""):
         super().__init__()
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(3)
-        row.addWidget(checkbox)
-        row.addWidget(switch)
+        self._path = ""
+        self.setPath(path)
+
+    def path(self):
+        return self._path
+
+    def setPath(self, path):
+        self._path = str(path)
+        self.setToolTip(self._path)
+        self._render()
+
+    def _render(self):
+        if self.hasFocus():
+            self.setText(self._path)
+            return
+        margins = self.textMargins()
+        # Leave room for the frame plus the stylesheet's 4px horizontal padding on each side.
+        width = self.contentsRect().width() - margins.left() - margins.right() - 16
+        self.setText(self.fontMetrics().elidedText(self._path, Qt.TextElideMode.ElideLeft, max(0, width)))
+        self.setCursorPosition(0)
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self.setText(self._path)
+        self.selectAll()
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        # Uncommitted edits are discarded; Enter or Choose folder commits a new path.
+        self._render()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if not self.hasFocus():
+            self._render()
 
 
 class PlotModeSwitch(QWidget):
@@ -231,6 +413,79 @@ def pattern_icon(color):
     icon = QIcon(pixmap)
     icon.addPixmap(pixmap, QIcon.Mode.Selected)
     return icon
+
+
+def palette_icon(colors, width=48, height=12):
+    """A strip of color swatches previewing a palette."""
+    ratio = 2
+    pixmap = QPixmap(width * ratio, height * ratio)
+    pixmap.setDevicePixelRatio(ratio)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setPen(Qt.PenStyle.NoPen)
+    step = width / len(colors)
+    for i, color in enumerate(colors):
+        painter.setBrush(QColor(color))
+        painter.drawRect(QRectF(i * step, 1, step + 0.5, height - 2))
+    painter.end()
+    return QIcon(pixmap)
+
+
+def build_palette_combo(include_black=True):
+    """Black first, then categorical palettes, then gradients spread across all curves."""
+    combo = QComboBox()
+    combo.setIconSize(QSize(48, 12))
+    if include_black:
+        combo.addItem(palette_icon(["#000000"]), "Black", "black")
+    groups = (("categorical", "Cycle through fixed colors"),
+              ("gradient", "Spread evenly across all curves in list order"))
+    for kind, hint in groups:
+        if combo.count():
+            combo.insertSeparator(combo.count())
+        for key, palette in PALETTES.items():
+            if palette.kind != kind:
+                continue
+            combo.addItem(palette_icon(palette_colors(key, 8)), palette.label, key)
+            combo.setItemData(combo.count() - 1, hint, Qt.ItemDataRole.ToolTipRole)
+    combo.setMaxVisibleItems(combo.count())
+    combo.view().setMinimumWidth(combo.view().sizeHintForColumn(0) + 24)
+    combo.setToolTip("Curve colors. Picking a palette recolors all curves (undo with Ctrl+Z).")
+    return combo
+
+
+class CurveColorDialog(QColorDialog):
+    """Color dialog whose basic colors are shades of a chosen publication palette.
+
+    Columns are the palette colors; rows run from dark to light (the third row is
+    the palette color itself).
+    """
+    def __init__(self, initial, palette_key, parent=None):
+        super().__init__(initial, parent)
+        self.setOption(QColorDialog.ColorDialogOption.DontUseNativeDialog, True)
+        self.setWindowTitle("Curve color")
+        row = QHBoxLayout()
+        label = QLabel("Palette shades")
+        self.palette_combo = build_palette_combo(include_black=False)
+        self.palette_combo.setToolTip("Fill Basic colors with dark-to-light shades of this palette")
+        label.setBuddy(self.palette_combo)
+        row.addWidget(label)
+        row.addWidget(self.palette_combo, 1)
+        self.layout().insertLayout(0, row)
+        self.palette_combo.currentIndexChanged.connect(self._apply_palette)
+        index = self.palette_combo.findData(palette_key)
+        self.palette_combo.setCurrentIndex(max(0, index))
+        self._apply_palette()
+
+    def palette_key(self):
+        return self.palette_combo.currentData()
+
+    def _apply_palette(self):
+        # Qt fills the 6 x 8 basic grid column by column: cell (row, col) is col * 6 + row.
+        for row, colors in enumerate(shade_grid(self.palette_key())):
+            for col, color in enumerate(colors):
+                QColorDialog.setStandardColor(col * 6 + row, QColor(color))
+        for child in self.findChildren(QWidget):
+            child.update()
 
 
 class MainWindowUiMixin:
@@ -303,15 +558,9 @@ class MainWindowUiMixin:
         btn_load_proj.clicked.connect(self.load_project)
         top_layout.addWidget(btn_load_proj)
 
-        self.curve_labels_btn = QPushButton("Curve labels: On")
-        self.curve_labels_btn.setCheckable(True)
-        self.curve_labels_btn.setChecked(True)
-        self.curve_labels_btn.toggled.connect(self.on_toggle_curve_labels)
-        top_layout.addWidget(self.curve_labels_btn)
-
         folder_label = QLabel("Default folder:")
         top_layout.addWidget(folder_label)
-        self.browser_root_edit = QLineEdit(self.browser_root_dir)
+        self.browser_root_edit = PathLineEdit(self.browser_root_dir)
         self.browser_root_edit.setMinimumWidth(180)
         self.browser_root_edit.returnPressed.connect(self.on_browser_root_changed)
         top_layout.addWidget(self.browser_root_edit)
@@ -355,10 +604,11 @@ class MainWindowUiMixin:
         self.browser_tree.itemDoubleClicked.connect(self.on_browser_item_double_clicked)
         gb_browser_layout.addWidget(self.browser_tree)
 
-        self.sort_by_filename_cb = QCheckBox("Sort by modified time (newest first)")
-        self.sort_by_filename_cb.setChecked(True)
-        self.sort_by_filename_cb.stateChanged.connect(self.populate_browser_tree)
-        gb_browser_layout.addWidget(self.sort_by_filename_cb)
+        self.sort_by_mtime_cb = QCheckBox("Newest first")
+        self.sort_by_mtime_cb.setToolTip("Sort files by modified time, newest first. When off, files are sorted by name.")
+        self.sort_by_mtime_cb.setChecked(True)
+        self.sort_by_mtime_cb.stateChanged.connect(self.populate_browser_tree)
+        gb_browser_layout.addWidget(self.sort_by_mtime_cb)
 
         btn_refresh_browser = QPushButton("Refresh browser")
         btn_refresh_browser.clicked.connect(self.populate_browser_tree)
@@ -410,28 +660,43 @@ class MainWindowUiMixin:
             return widget.content_layout
 
         display = section("Display")
-        self.norm_cb = QCheckBox("Full-range norm.")
-        self.norm_cb.setToolTip("Normalize each curve so its maximum intensity across the full data range is 1, before curve scaling and offsets. Visible-range normalization takes priority when enabled. Original data is unchanged.")
-        self.norm_cb.setChecked(True)
-        self.norm_cb.toggled.connect(lambda: self.update_plot(preserve_view=True))
+        display_grid = QGridLayout()
+        display_grid.setContentsMargins(0, 0, 0, 0)
+        display_grid.setHorizontalSpacing(6)
+        display_grid.setVerticalSpacing(5)
+        display_grid.setColumnStretch(1, 1)
         self.superimpose_cb = PlotModeSwitch()
         self.superimpose_cb.setToolTip("Stack curves or overlay them on a shared axis")
         self.superimpose_cb.stateChanged.connect(self.on_superimpose_toggled)
-        display.addWidget(DisplayRow(self.norm_cb, self.superimpose_cb))
-        self.live_norm_cb = QCheckBox("Normalize to visible range")
-        self.live_norm_cb.setToolTip("Normalize each curve so its maximum intensity in the visible X range is 1, before curve scaling and offsets. Updates as the view changes. Overrides full-range normalization. Original data is unchanged.")
-        self.live_norm_cb.toggled.connect(self.on_live_normalization_toggled)
-        display.addWidget(self.live_norm_cb)
-        row = QHBoxLayout()
-        row.addWidget(QLabel("Color mode"))
-        self.color_mode_combo = QComboBox()
-        self.color_mode_combo.addItem("Black", "black")
-        self.color_mode_combo.addItem("Multicolor", "colorful")
+        self.norm_mode_combo = QComboBox()
+        self.norm_mode_combo.addItem("Off", "none")
+        self.norm_mode_combo.addItem("Full range", "full")
+        self.norm_mode_combo.addItem("Visible range", "visible")
+        self.norm_mode_combo.setCurrentIndex(1)
+        self.norm_mode_combo.setToolTip(
+            "Scale each curve so its maximum is 1 before curve scaling and offsets.\n"
+            "Full range: maximum over the whole curve.\n"
+            "Visible range: maximum inside the current X view; updates as you zoom or pan.\n"
+            "Original data is unchanged.")
+        self.norm_mode_combo.currentIndexChanged.connect(self.on_norm_mode_changed)
+        self.color_mode_combo = build_palette_combo()
         self.color_mode_combo.currentIndexChanged.connect(self.on_color_mode_changed)
-        row.addWidget(self.color_mode_combo, 1)
-        display.addLayout(row)
+        for row, (title, control) in enumerate((
+            ("Layout", self.superimpose_cb),
+            ("Normalize", self.norm_mode_combo),
+            ("Color mode", self.color_mode_combo),
+        )):
+            label = QLabel(title)
+            label.setBuddy(control)
+            display_grid.addWidget(label, row, 0)
+            display_grid.addWidget(control, row, 1)
+        display.addLayout(display_grid)
 
         curves = section("Curves & text")
+        self.curve_labels_btn = QCheckBox("Show curve labels")
+        self.curve_labels_btn.setChecked(True)
+        self.curve_labels_btn.toggled.connect(self.on_toggle_curve_labels)
+        curves.addWidget(self.curve_labels_btn)
         fields = ParameterGrid()
         specs = (
             ("Curve label size", "curve_label_fs_spin", QSpinBox, (5, 40), 10, {}),
@@ -474,12 +739,12 @@ class MainWindowUiMixin:
             control.editingFinished.connect(lambda: self.set_display_range(show_warning=False))
         canvas.addWidget(fields)
         parameter_buttons = QHBoxLayout()
-        self.save_plot_defaults_button = QPushButton("Save parameters")
-        self.save_plot_defaults_button.setToolTip("Use the current plotting parameters when xStack starts")
+        self.save_plot_defaults_button = QPushButton("Save as default")
+        self.save_plot_defaults_button.setToolTip("Use the current plotting parameters every time xStack starts")
         self.save_plot_defaults_button.clicked.connect(self.save_plot_defaults)
         parameter_buttons.addWidget(self.save_plot_defaults_button, 1)
-        self.reset_plot_defaults_button = QPushButton("restore parameters")
-        self.reset_plot_defaults_button.setToolTip("Restore the original plotting parameters. Click Save parameters to use them on future starts.")
+        self.reset_plot_defaults_button = QPushButton("Factory reset")
+        self.reset_plot_defaults_button.setToolTip("Restore the built-in plotting parameters for this session. Saved defaults are kept until you click Save as default.")
         self.reset_plot_defaults_button.clicked.connect(self.reset_plot_defaults)
         parameter_buttons.addWidget(self.reset_plot_defaults_button, 1)
         layout.addLayout(parameter_buttons)
@@ -541,9 +806,11 @@ class MainWindowUiMixin:
         self.controls_splitter.addWidget(loaded_panel)
         self.controls_splitter.addWidget(self.inspector_scroll)
         self.inspector_scroll.setMinimumHeight(150)
-        self.controls_splitter.setStretchFactor(0, 0)
-        self.controls_splitter.setStretchFactor(1, 1)
-        self.controls_splitter.setSizes([150, 560])
+        # The pattern list takes spare height; the inspector keeps its natural height.
+        self.controls_splitter.setStretchFactor(0, 1)
+        self.controls_splitter.setStretchFactor(1, 0)
+        inspector_height = panel.sizeHint().height()
+        self.controls_splitter.setSizes([max(150, 710 - inspector_height), inspector_height])
         self.controls_splitter.handle(1).setToolTip("Drag to resize the loaded patterns list")
         return self.controls_splitter
 

@@ -1,7 +1,12 @@
+; AppVer comes from xstack_version.py; packaging/build.ps1 passes /DAppVer=...
+#ifndef AppVer
+  #error Build with packaging/build.ps1 so the version is defined.
+#endif
+
 [Setup]
 AppId={{A711A197-1521-4D71-9895-B79C0EC659A4}
 AppName=xStack
-AppVersion=1.5
+AppVersion={#AppVer}
 AppPublisher=Yu-Lin Lu
 AppPublisherURL=https://orcid.org/0000-0001-9846-8127
 DefaultDirName={localappdata}\Programs\xStack
@@ -11,8 +16,8 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
-OutputDir=..\release\1.5
-OutputBaseFilename=xStack-1.5-Setup
+OutputDir=..\release\{#AppVer}
+OutputBaseFilename=xStack-{#AppVer}-Setup
 SetupIconFile=..\xStack.ico
 UninstallDisplayIcon={app}\xStack.exe
 Compression=lzma2
@@ -20,13 +25,13 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=1.5.0.0
+VersionInfoVersion={#AppVer}.0.0
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\release\1.5\xStack-1.5\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\release\{#AppVer}\xStack-{#AppVer}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\xStack"; Filename: "{app}\xStack.exe"

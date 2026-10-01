@@ -44,7 +44,7 @@ def stop_children(parent):
         if handle:
             kernel.TerminateProcess(handle,0)
             kernel.CloseHandle(handle)
-base=Path(__file__).resolve().parent.parent/'build'/'smoke'
+base=Path(os.environ.get('LOCALAPPDATA') or tempfile.gettempdir())/'xStack-build'/'smoke'
 base.mkdir(parents=True,exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='frozen-',dir=base) as folder:
     work=Path(folder)

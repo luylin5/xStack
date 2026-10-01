@@ -93,7 +93,7 @@ class DataSafetyTests(unittest.TestCase):
 
     def test_changed_data_rejects_apply(self):
         dialog = self.open_tools()
-        self.window.patterns[0]['y'][:] = 42
+        self.window.patterns[0]['y'] = np.full(5, 42.0)
         button = next(b for b in dialog.findChildren(QPushButton) if b.text() == 'Apply')
         button.click()
         np.testing.assert_array_equal(self.window.patterns[0]['y'], [42]*5)

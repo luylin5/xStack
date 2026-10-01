@@ -19,6 +19,7 @@ spec = importlib.util.spec_from_file_location(
     "xstack", Path(__file__).with_name("xStack.py")
 )
 xstack = importlib.util.module_from_spec(spec)
+import xstack_io  # noqa: E402 - imported after the path-based load above
 spec.loader.exec_module(xstack)
 
 
@@ -40,8 +41,10 @@ class FileOpenTests(unittest.TestCase):
             self.files.append(str(path))
 
     def window(self, paths=None):
-        window = xstack.PXRDMultiCompareApp(paths, settings=self.settings)
+        window = xstack.PXRDMultiCompareApp(settings=self.settings)
         self.addCleanup(window.close)
+        # Command-line files reach the window via FileOpenService -> open_external_files.
+        self.startup = [os.path.abspath(p) for p in (paths or [])]
         return window
 
     def test_browser_remembers_explicit_folder(self):
@@ -58,13 +61,13 @@ class FileOpenTests(unittest.TestCase):
 
     def test_external_files_append_and_preserve_settings(self):
         window = self.window(self.files[:1])
-        window.open_startup_files()
+        window.open_external_files(self.startup)
         first = window.patterns[0]
-        window.norm_cb.setChecked(False)
+        window._set_norm_mode("none")
         window.open_external_files(self.files)
         self.assertEqual(window.files_list.count(), 2)
         self.assertIs(window.patterns[0], first)
-        self.assertFalse(window.norm_cb.isChecked())
+        self.assertEqual(window._norm_mode(), "none")
         self.assertFalse(hasattr(window, "mode_combo"))
         self.assertEqual(self.settings.value("browser/root_dir"), str(self.root))
 
@@ -119,7 +122,7 @@ assert service.start_or_forward(sys.argv[3:]) is False
             started.set()
             release.wait(3)
             return reader(path)
-        with patch.object(xstack, "load_pattern_file", side_effect=delayed), patch.object(window, "update_plot", wraps=window.update_plot) as redraw:
+        with patch.object(xstack_io, "load_pattern_file", side_effect=delayed), patch.object(window, "update_plot", wraps=window.update_plot) as redraw:
             try:
                 window.queue_patterns_from_paths(self.files)
                 self.assertTrue(started.wait(1))
@@ -147,21 +150,21 @@ assert service.start_or_forward(sys.argv[3:]) is False
         window = self.window(self.files + [str(invalid), str(self.root / "missing.xy"), str(self.root / "prefs.ini")])
         self.settings.sync()
         with patch.object(QMessageBox, "warning") as warning, patch.object(QMessageBox, "critical") as critical:
-            window.open_startup_files()
+            window.open_external_files(self.startup)
         self.assertEqual(window.files_list.count(), 2)
         warning.assert_called_once()
         critical.assert_called_once()
 
     def test_external_project_then_additional_data(self):
         window = self.window(self.files[:1])
-        window.open_startup_files()
+        window.open_external_files(self.startup)
         project = str(self.root / "saved project.pxrdproj")
         with patch.object(QFileDialog, "getSaveFileName", return_value=(project, "")), patch.object(QMessageBox, "information"):
             window.save_project()
         self.assertTrue(Path(project).is_file())
         reopened = self.window([project, self.files[1]])
         with patch.object(QMessageBox, "information") as info, patch.object(QMessageBox, "critical") as error:
-            reopened.open_startup_files()
+            reopened.open_external_files(self.startup)
         info.assert_not_called()
         error.assert_not_called()
         self.assertFalse(hasattr(reopened, "mode_combo"))

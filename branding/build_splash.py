@@ -13,7 +13,7 @@ BG='#061B43'
 WHITE='#F2F7FC'
 MUTED='#A6BAD2'
 CYAN='#35CEF3'
-VERSION='v1.5'
+VERSION='v'+re.search(r'__version__ = "([^"]+)"',(ROOT/'xstack_version.py').read_text(encoding='utf-8')).group(1)
 AUTHOR='Yu-Lin Lu'
 YEAR='2026'
 image=Image.new('RGB',(W,H),BG)
